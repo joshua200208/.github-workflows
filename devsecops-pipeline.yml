@@ -1,0 +1,37 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Set this to the branch you want to trigger the pipeline on
+  pull_request:
+    branches:
+      - main  # Run pipeline on pull requests to this branch as well
+
+jobs:
+  devsecops:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'  # Specify your Node.js version if needed
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run SAST scan (CodeQL)
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript  # Specify relevant language
+        - run: |
+            npm audit
+            npx eslint .  # For linting
+        - run: npm test
