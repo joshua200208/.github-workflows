@@ -3,10 +3,10 @@ name: DevSecOps Pipeline
 on:
   push:
     branches:
-      - main  # Set this to the branch you want to trigger the pipeline on
+      - main  
   pull_request:
     branches:
-      - main  # Run pipeline on pull requests to this branch as well
+      - main  
 
 jobs:
   devsecops:
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # Specify your Node.js version if needed
+          node-version: '16' 
 
       - name: Install dependencies
         run: npm install
@@ -35,3 +35,53 @@ jobs:
             npm audit
             npx eslint .  # For linting
         - run: npm test
+        - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          # Install SonarQube scanner
+          npm install -g sonarqube-scanner
+          
+          sonar-scanner \
+            -Dsonar.projectKey=your_project_key \
+            -Dsonar.organization=your_organization \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=$SONAR_TOKEN
+
+      # --- Dependency Scanning (e.g., OWASP Dependency-Check) ---
+      - name: OWASP Dependency Check
+        run: |
+   
+          curl -LO https://github.com/jeremylong/DependencyCheck/releases/download/v7.1.1/dependency-check-7.1.1-release.zip
+          unzip dependency-check-7.1.1-release.zip -d dependency-check
+          
+          ./dependency-check/bin/dependency-check.sh --project "your_project" --out reports/ --scan .
+
+     
+      - name: Snyk Dependency Scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+       
+          npm install -g snyk
+        
+          snyk auth $SNYK_TOKEN
+        
+          snyk test
+
+     
+      - name: Trivy Container Scan
+        env:
+          TRIVY_TOKEN: ${{ secrets.TRIVY_TOKEN }}
+        run: |
+       
+          sudo apt-get install -y wget
+          wget -qO- https://github.com/aquasecurity/trivy/releases/download/v0.29.2/trivy_0.29.2_Linux-64bit.tar.gz | tar zxvf - -C /usr/local/bin trivy
+          
+          trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+
+      # --- IaC Security (Checkov) ---
+      - name: Checkov IaC Security Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
